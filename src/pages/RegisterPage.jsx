@@ -1,0 +1,14 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Leaf, UserPlus, AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+
+export function RegisterPage() {
+  const { register } = useAuth();
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'EMPLOYEE' });
+  const [error, setError] = useState('');
+  const update = (event) => setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+  const submit = (event) => { event.preventDefault(); setError(''); try { register(form); navigate('/login', { state: { message: 'Account created successfully. Please login to continue.' } }); } catch (err) { setError(err.message); } };
+  return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-5"><div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-800 p-7 shadow-2xl"><div className="text-center mb-7"><div className="inline-flex p-3 rounded-2xl bg-emerald-500 text-slate-950"><Leaf /></div><h1 className="text-2xl font-black mt-3">Create your EcoComply account</h1><p className="text-xs text-slate-400 mt-2">Join the environmental operations workspace.</p></div>{error && <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex gap-2"><AlertCircle className="w-4 h-4" />{error}</div>}<form onSubmit={submit} className="space-y-4 text-sm">{[['name','Full Name','text'],['email','Email Address','email'],['password','Password','password'],['confirmPassword','Confirm Password','password']].map(([name,label,type]) => <label key={name} className="block"><span className="block text-slate-300 font-semibold mb-1">{label}</span><input name={name} type={type} required value={form[name]} onChange={update} className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" /></label>)}<label className="block"><span className="block text-slate-300 font-semibold mb-1">Role</span><select name="role" value={form.role} onChange={update} className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"><option>ADMIN</option><option>EMPLOYEE</option></select></label><button className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold flex items-center justify-center gap-2"><UserPlus className="w-4 h-4" /> Create Account</button></form><p className="text-center text-xs text-slate-400 mt-5">Already have an account? <Link to="/login" className="text-emerald-400 font-semibold">Login</Link></p></div></div>;
+}

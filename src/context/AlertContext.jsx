@@ -53,7 +53,10 @@ export function AlertProvider({ children }) {
       description: newAlert.description || 'Threshold breached during environmental monitoring.',
       status: 'ACTIVE',
       resolvedAt: null,
-      resolutionNote: ''
+      resolutionNote: '',
+      submittedBy: newAlert.submittedBy || '',
+      submitterEmail: newAlert.submitterEmail || '',
+      submitterRole: newAlert.submitterRole || ''
     };
 
     setAlerts((prev) => {

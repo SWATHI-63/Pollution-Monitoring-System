@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Waves, Droplet, ArrowUpRight, ArrowDownRight, Activity } from 'lucide-react';
+import { Waves, Droplet } from 'lucide-react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -15,15 +15,38 @@ import { useThresholds } from '../context/ThresholdContext';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { formatNumber, formatTimeOnly } from '../utils/formatters';
 import { generateTrendPoints } from '../data/mockHistory';
+import { calculateCompliance } from '../utils/complianceCalculator';
+
+const getHistoryCount = (range) => {
+  if (range === '1h') return 12;
+  if (range === '6h') return 18;
+  return 24;
+};
+
+const getCurrentCompliance = (manualReadings, readings, thresholds, fallback) => {
+  if (manualReadings[0]) return calculateCompliance(readings, thresholds);
+  return fallback;
+};
 
 export function WaterQualityPage() {
-  const { readings, compliance } = useSimulation();
+  const { readings, liveHistory, environmentalReadings } = useSimulation();
   const { thresholds } = useThresholds();
   const [timeRange, setTimeRange] = useState('24h');
+  const currentReadings = environmentalReadings[0] || readings;
+  const currentCompliance = getCurrentCompliance(environmentalReadings, currentReadings, thresholds, calculateCompliance(readings, thresholds));
+  const historyCount = getHistoryCount(timeRange);
+  const historyStep = timeRange === '1h' ? 5 : 60;
 
   const historyData = useMemo(() => {
-    return generateTrendPoints('TX-01', timeRange === '1h' ? 12 : timeRange === '6h' ? 18 : 24, timeRange === '1h' ? 5 : 60);
-  }, [timeRange]);
+    const fallback = generateTrendPoints('TX-01', historyCount, historyStep);
+    const telemetry = liveHistory.map((point) => ({ ...point, time: point.time }));
+    const submitted = environmentalReadings.slice().reverse().map((reading) => ({
+      time: `${reading.date} ${reading.time}`,
+      ph: reading.ph,
+      turbidity: reading.turbidity
+    }));
+    return [...fallback, ...telemetry, ...submitted].slice(-historyCount);
+  }, [historyCount, historyStep, liveHistory, environmentalReadings]);
 
   const stats = useMemo(() => {
     const phVals = historyData.map((d) => d.ph);
@@ -48,9 +71,9 @@ export function WaterQualityPage() {
       id: 'ph',
       name: 'Effluent pH Index',
       unit: 'pH',
-      current: readings.ph,
+      current: currentReadings.ph,
       threshold: thresholds.ph,
-      eval: compliance.details?.ph,
+      eval: currentCompliance.details?.ph,
       stat: stats.ph,
       icon: Droplet,
       color: '#8b5cf6',
@@ -60,9 +83,9 @@ export function WaterQualityPage() {
       id: 'turbidity',
       name: 'Wastewater Turbidity',
       unit: 'NTU',
-      current: readings.turbidity,
+      current: currentReadings.turbidity,
       threshold: thresholds.turbidity,
-      eval: compliance.details?.turbidity,
+      eval: currentCompliance.details?.turbidity,
       stat: stats.turbidity,
       icon: Waves,
       color: '#06b6d4',
@@ -80,7 +103,7 @@ export function WaterQualityPage() {
               Wastewater Effluent Telemetry
             </span>
             <span className="text-xs text-slate-400 font-mono">
-              Live Evaluated: {formatTimeOnly(readings.timestamp)}
+              Live Evaluated: {formatTimeOnly(currentReadings.timestamp)}
             </span>
           </div>
           <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">

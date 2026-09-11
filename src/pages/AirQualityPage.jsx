@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Wind, Thermometer, Droplets, ArrowUpRight, ArrowDownRight, Clock, Activity, BarChart2 } from 'lucide-react';
+import { Wind, Thermometer, Droplets } from 'lucide-react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -15,15 +15,34 @@ import { useThresholds } from '../context/ThresholdContext';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { formatNumber, formatTimeOnly } from '../utils/formatters';
 import { generateTrendPoints } from '../data/mockHistory';
+import { calculateCompliance } from '../utils/complianceCalculator';
+
+const getHistoryCount = (range) => {
+  if (range === '1h') return 12;
+  if (range === '6h') return 18;
+  return 24;
+};
 
 export function AirQualityPage() {
-  const { readings, compliance, isRunning } = useSimulation();
+  const { readings, liveHistory, environmentalReadings } = useSimulation();
   const { thresholds } = useThresholds();
   const [timeRange, setTimeRange] = useState('24h');
+  const currentReadings = environmentalReadings[0] || readings;
+  const currentCompliance = environmentalReadings[0] ? calculateCompliance(currentReadings, thresholds) : calculateCompliance(readings, thresholds);
+  const historyCount = getHistoryCount(timeRange);
+  const historyStep = timeRange === '1h' ? 5 : 60;
 
   const historyData = useMemo(() => {
-    return generateTrendPoints('TX-01', timeRange === '1h' ? 12 : timeRange === '6h' ? 18 : 24, timeRange === '1h' ? 5 : 60);
-  }, [timeRange]);
+    const fallback = generateTrendPoints('TX-01', historyCount, historyStep);
+    const telemetry = liveHistory.map((point) => ({ ...point, time: point.time }));
+    const submitted = environmentalReadings.slice().reverse().map((reading) => ({
+      time: `${reading.date} ${reading.time}`,
+      airQuality: reading.airQuality,
+      temperature: reading.temperature,
+      humidity: reading.humidity
+    }));
+    return [...fallback, ...telemetry, ...submitted].slice(-historyCount);
+  }, [historyCount, historyStep, liveHistory, environmentalReadings]);
 
   // Compute statistics for the 3 air parameters
   const stats = useMemo(() => {
@@ -47,9 +66,9 @@ export function AirQualityPage() {
       id: 'airQuality',
       name: 'Air Quality (MQ-135)',
       unit: 'PPM',
-      current: readings.airQuality,
+      current: currentReadings.airQuality,
       threshold: thresholds.airQuality,
-      eval: compliance.details?.airQuality,
+      eval: currentCompliance.details?.airQuality,
       stat: stats.airQuality,
       icon: Wind,
       color: '#10b981',
@@ -59,9 +78,9 @@ export function AirQualityPage() {
       id: 'temperature',
       name: 'Ambient Temperature',
       unit: '°C',
-      current: readings.temperature,
+      current: currentReadings.temperature,
       threshold: thresholds.temperature,
-      eval: compliance.details?.temperature,
+      eval: currentCompliance.details?.temperature,
       stat: stats.temperature,
       icon: Thermometer,
       color: '#f59e0b',
@@ -71,9 +90,9 @@ export function AirQualityPage() {
       id: 'humidity',
       name: 'Relative Humidity',
       unit: '%',
-      current: readings.humidity,
+      current: currentReadings.humidity,
       threshold: thresholds.humidity,
-      eval: compliance.details?.humidity,
+      eval: currentCompliance.details?.humidity,
       stat: stats.humidity,
       icon: Droplets,
       color: '#06b6d4',
@@ -91,7 +110,7 @@ export function AirQualityPage() {
               Atmospheric Telemetry
             </span>
             <span className="text-xs text-slate-400 font-mono">
-              Live Updated: {formatTimeOnly(readings.timestamp)}
+              Live Updated: {formatTimeOnly(currentReadings.timestamp)}
             </span>
           </div>
           <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">

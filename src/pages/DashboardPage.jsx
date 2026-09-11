@@ -5,8 +5,6 @@ import {
   AlertOctagon,
   AlertTriangle,
   Activity,
-  Wind,
-  Droplets,
   Cpu,
   ArrowRight
 } from 'lucide-react';
@@ -21,12 +19,38 @@ import { EnvironmentalStatusCards } from '../components/dashboard/EnvironmentalS
 import { TrendChart } from '../components/dashboard/TrendChart';
 import { RecentAlertsTable } from '../components/dashboard/RecentAlertsTable';
 import { FacilityComplianceList } from '../components/dashboard/FacilityComplianceList';
+import { calculateCompliance } from '../utils/complianceCalculator';
+
+const getComplianceColor = (percentage) => {
+  if (percentage >= 90) return 'emerald';
+  if (percentage >= 70) return 'amber';
+  return 'rose';
+};
+
+const getCurrentCompliance = (manualReadings, readings, compliance, thresholds) => {
+  if (manualReadings[0]) return calculateCompliance(manualReadings[0], thresholds);
+  return compliance;
+};
 
 export function DashboardPage() {
-  const { readings, liveHistory, compliance, isRunning, simulationMode } = useSimulation();
+  const { readings, liveHistory, compliance, simulationMode, environmentalReadings } = useSimulation();
   const { thresholds } = useThresholds();
   const { facilities } = useFacilities();
   const { activeAlerts } = useAlerts();
+  const currentReadings = environmentalReadings[0] || readings;
+  const currentCompliance = getCurrentCompliance(environmentalReadings, currentReadings, compliance, thresholds);
+  const complianceColor = getComplianceColor(currentCompliance.overallPercentage);
+  const chartHistory = [
+    ...liveHistory,
+    ...environmentalReadings.slice().reverse().map((reading) => ({
+      time: `${reading.date} ${reading.time}`,
+      airQuality: reading.airQuality,
+      temperature: reading.temperature,
+      humidity: reading.humidity,
+      ph: reading.ph,
+      turbidity: reading.turbidity
+    }))
+  ].slice(-24);
 
   return (
     <div className="space-y-8">
@@ -62,17 +86,11 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard
           title="Overall Compliance"
-          value={`${compliance.overallPercentage}%`}
+          value={`${currentCompliance.overallPercentage}%`}
           subtitle="Reference adherence"
           icon={ShieldCheck}
-          colorScheme={
-            compliance.overallPercentage >= 90
-              ? 'emerald'
-              : compliance.overallPercentage >= 70
-              ? 'amber'
-              : 'rose'
-          }
-          badge={<StatusBadge status={compliance.overallStatus} size="sm" />}
+          colorScheme={complianceColor}
+          badge={<StatusBadge status={currentCompliance.overallStatus} size="sm" />}
         />
 
         <KpiCard
@@ -99,10 +117,10 @@ export function DashboardPage() {
 
         <KpiCard
           title="Current Violations"
-          value={compliance.violationCount}
+          value={currentCompliance.violationCount}
           subtitle="Parameters breaching limits"
           icon={AlertOctagon}
-          colorScheme={compliance.violationCount > 0 ? 'rose' : 'emerald'}
+          colorScheme={currentCompliance.violationCount > 0 ? 'rose' : 'emerald'}
         />
 
         <KpiCard
@@ -117,13 +135,18 @@ export function DashboardPage() {
 
       {/* Environmental Status Cards (Air Quality + Water Quality) */}
       <EnvironmentalStatusCards
-        readings={readings}
+        readings={currentReadings}
         thresholds={thresholds}
-        compliance={compliance}
+        compliance={currentCompliance}
       />
 
       {/* Multi-Parameter Pollution Trend Chart */}
-      <TrendChart liveHistory={liveHistory} />
+      <TrendChart liveHistory={chartHistory} />
+
+      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="p-5 flex items-center justify-between"><div><h3 className="font-bold text-slate-900 dark:text-white">Recent Environmental Readings</h3><p className="text-xs text-slate-500 mt-1">Latest submitted facility records</p></div><Link to="/environmental-reading" className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Add reading</Link></div>
+        <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-400 uppercase text-[10px]"><tr><th className="px-5 py-3">Timestamp</th><th className="px-5 py-3">Facility</th><th className="px-5 py-3">Air</th><th className="px-5 py-3">pH</th><th className="px-5 py-3">Turbidity</th><th className="px-5 py-3">Submitted By</th><th className="px-5 py-3">Status</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{environmentalReadings.slice(0, 5).map((reading) => <tr key={reading.id}><td className="px-5 py-3 font-mono text-slate-400">{reading.date} {reading.time}</td><td className="px-5 py-3 font-semibold text-slate-900 dark:text-white">{reading.facility}</td><td className="px-5 py-3">{reading.airQuality}</td><td className="px-5 py-3">{reading.ph}</td><td className="px-5 py-3">{reading.turbidity}</td><td className="px-5 py-3">{reading.submittedBy}</td><td className="px-5 py-3"><StatusBadge status={reading.status} size="sm" /></td></tr>)}{environmentalReadings.length === 0 && <tr><td colSpan="7" className="px-5 py-8 text-center text-slate-400">No manual readings submitted yet.</td></tr>}</tbody></table></div>
+      </div>
 
       {/* Bottom Grid: Recent Alerts Table & Facility Compliance Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

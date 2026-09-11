@@ -5,6 +5,7 @@ import { useFacilities } from './FacilityContext';
 import { evaluateParameterStatus, calculateCompliance } from '../utils/complianceCalculator';
 import { storage } from '../utils/storage';
 import { api } from '../services/api';
+import { useAuth } from './AuthContext';
 
 const SimulationContext = createContext();
 
@@ -21,6 +22,7 @@ export function SimulationProvider({ children }) {
   const { thresholds } = useThresholds();
   const { addAlert } = useAlerts();
   const { currentFacility, facilities } = useFacilities();
+  const { currentUser } = useAuth();
 
   const [isRunning, setIsRunning] = useState(() => storage.get('sim_running', true));
   const [isPaused, setIsPaused] = useState(false);
@@ -45,6 +47,7 @@ export function SimulationProvider({ children }) {
   });
 
   const [lastManualAnalysis, setLastManualAnalysis] = useState(null);
+  const [environmentalReadings, setEnvironmentalReadings] = useState(() => storage.get('environmental_readings', []));
   const timerRef = useRef(null);
 
   // Sync to local storage
@@ -227,15 +230,15 @@ export function SimulationProvider({ children }) {
     }
   };
 
-  // Manual input analyzer with backend submission
-  const analyzeManualReading = async (manualValues) => {
+  const submitEnvironmentalReading = async (manualValues) => {
+    const submittedAt = new Date(`${manualValues.date || new Date().toISOString().slice(0, 10)}T${manualValues.time || new Date().toTimeString().slice(0, 5)}`);
     const formatted = {
       airQuality: Number(manualValues.airQuality),
       temperature: Number(manualValues.temperature),
       humidity: Number(manualValues.humidity),
       ph: Number(manualValues.ph),
       turbidity: Number(manualValues.turbidity),
-      timestamp: new Date().toISOString()
+      timestamp: submittedAt.toISOString()
     };
 
     setReadings(formatted);
@@ -252,9 +255,29 @@ export function SimulationProvider({ children }) {
     const analysis = calculateCompliance(formatted, thresholds);
     setLastManualAnalysis(analysis);
 
-    const targetFacility = currentFacility || facilities[0];
+    const targetFacility = manualValues.facilityId
+      ? facilities.find((facility) => facility.id === manualValues.facilityId)
+      : currentFacility || facilities[0];
     const facName = targetFacility ? targetFacility.name : 'Manual Test Bench';
     const facId = targetFacility ? targetFacility.id : 'fac-1';
+    const reading = {
+      id: `reading-${Date.now()}`,
+      ...formatted,
+      facility: facName,
+      facilityId: facId,
+      date: submittedAt.toISOString().slice(0, 10),
+      time: submittedAt.toTimeString().slice(0, 5),
+      status: analysis.violationCount > 0 ? 'VIOLATION' : analysis.warningCount > 0 ? 'WARNING' : 'NORMAL',
+      submittedBy: currentUser?.name || 'Authorized User',
+      submitterEmail: currentUser?.email || '',
+      submitterRole: currentUser?.role || 'EMPLOYEE',
+      source: 'MANUAL'
+    };
+    setEnvironmentalReadings((previous) => {
+      const updated = [reading, ...previous];
+      storage.set('environmental_readings', updated);
+      return updated;
+    });
 
     // Dispatch alerts if violation occurs
     Object.keys(thresholds).forEach((key) => {
@@ -270,7 +293,10 @@ export function SimulationProvider({ children }) {
             ? `< ${item.threshold.violationLow} or > ${item.threshold.violationHigh}`
             : `≥ ${item.threshold.violation} ${item.threshold.unit}`,
           severity: 'CRITICAL',
-          description: `MANUAL AUDIT ALERT: ${item.threshold.name} evaluated at ${item.value} ${item.threshold.unit} exceeds configured reference limit.`
+          description: `MANUAL AUDIT ALERT: ${item.threshold.name} evaluated at ${item.value} ${item.threshold.unit} exceeds configured reference limit.`,
+          submittedBy: reading.submittedBy,
+          submitterEmail: reading.submitterEmail,
+          submitterRole: reading.submitterRole
         });
       } else if (item && item.status === 'WARNING') {
         addAlert({
@@ -283,7 +309,10 @@ export function SimulationProvider({ children }) {
             ? `< ${item.threshold.warningLow} or > ${item.threshold.warningHigh}`
             : `≥ ${item.threshold.warning} ${item.threshold.unit}`,
           severity: 'WARNING',
-          description: `MANUAL AUDIT NOTICE: ${item.threshold.name} evaluated at ${item.value} ${item.threshold.unit} reached warning threshold.`
+          description: `MANUAL AUDIT NOTICE: ${item.threshold.name} evaluated at ${item.value} ${item.threshold.unit} reached warning threshold.`,
+          submittedBy: reading.submittedBy,
+          submitterEmail: reading.submitterEmail,
+          submitterRole: reading.submitterRole
         });
       }
     });
@@ -295,7 +324,7 @@ export function SimulationProvider({ children }) {
       console.warn('[SimulationContext] Backend manual reading sync failed:', err.message);
     }
 
-    return analysis;
+    return { ...analysis, reading };
   };
 
   return (
@@ -309,12 +338,14 @@ export function SimulationProvider({ children }) {
         liveHistory,
         compliance,
         lastManualAnalysis,
+        environmentalReadings,
         setSimulationMode,
         setTickIntervalMs,
         startSimulation,
         pauseSimulation,
         stopSimulation,
-        analyzeManualReading
+        analyzeManualReading: submitEnvironmentalReading,
+        submitEnvironmentalReading
       }}
     >
       {children}

@@ -5,6 +5,7 @@ import {
   Wind,
   Droplets,
   Cpu,
+  ClipboardPlus,
   ShieldCheck,
   Sliders,
   AlertOctagon,
@@ -37,6 +38,7 @@ export function Sidebar({ isOpen, onClose }) {
       items: [
         { name: 'Air Quality', path: '/air-quality', icon: Wind },
         { name: 'Water Quality', path: '/water-quality', icon: Droplets },
+        { name: 'Add Environmental Reading', path: '/environmental-reading', icon: ClipboardPlus },
         { name: 'Sensor Simulator', path: '/simulator', icon: Cpu }
       ]
     },
@@ -83,6 +85,7 @@ export function Sidebar({ isOpen, onClose }) {
       items: [
         { name: 'Air Quality', path: '/air-quality', icon: Wind },
         { name: 'Water Quality', path: '/water-quality', icon: Droplets },
+        { name: 'Add Environmental Reading', path: '/environmental-reading', icon: ClipboardPlus },
         { name: 'Sensor Simulator', path: '/simulator', icon: Cpu }
       ]
     },

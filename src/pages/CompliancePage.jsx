@@ -1,14 +1,16 @@
 import React from 'react';
-import { ShieldCheck, Info, Sliders, RefreshCw } from 'lucide-react';
 import { useSimulation } from '../context/SimulationContext';
 import { useThresholds } from '../context/ThresholdContext';
 import { ComplianceGauge } from '../components/compliance/ComplianceGauge';
 import { ParameterComplianceTable } from '../components/compliance/ParameterComplianceTable';
 import { DisclaimerBanner } from '../components/compliance/DisclaimerBanner';
+import { calculateCompliance } from '../utils/complianceCalculator';
 
 export function CompliancePage() {
-  const { compliance, readings } = useSimulation();
+  const { compliance, readings, environmentalReadings } = useSimulation();
   const { thresholds } = useThresholds();
+  const currentReadings = environmentalReadings[0] || readings;
+  const currentCompliance = environmentalReadings[0] ? calculateCompliance(currentReadings, thresholds) : compliance;
 
   return (
     <div className="space-y-8">
@@ -31,12 +33,12 @@ export function CompliancePage() {
       </div>
 
       {/* Prominent Compliance Indicator & Gauge */}
-      <ComplianceGauge compliance={compliance} />
+      <ComplianceGauge compliance={currentCompliance} />
 
       {/* Parameter Compliance Breakdown Table */}
       <ParameterComplianceTable
-        compliance={compliance}
-        readings={readings}
+        compliance={currentCompliance}
+        readings={currentReadings}
         thresholds={thresholds}
       />
 

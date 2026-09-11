@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { storage } from '../utils/storage';
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
+  const [accounts, setAccounts] = useState(() => storage.get('accounts', []));
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = storage.get('auth_user', null);
     return saved;
@@ -34,20 +35,15 @@ export function AuthProvider({ children }) {
       throw new Error('Password must be at least 4 characters long.');
     }
 
-    if (role !== 'ADMIN' && role !== 'EMPLOYEE') {
-      throw new Error('Invalid role selected. Must be ADMIN or EMPLOYEE.');
+    const account = accounts.find((item) => item.email.toLowerCase() === trimmedEmail.toLowerCase());
+    if (!account || account.password !== password) {
+      throw new Error('No account matches this email and password. Please create an account first.');
     }
 
-    // Derive a clean display name from the email
-    const namePart = trimmedEmail.split('@')[0];
-    const displayName = namePart
-      .replace(/[._-]/g, ' ')
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-
     const userObj = {
-      email: trimmedEmail,
-      role: role.toUpperCase(),
-      name: displayName || (role === 'ADMIN' ? 'Admin User' : 'Employee User'),
+      email: account.email,
+      role: account.role,
+      name: account.name,
       rememberMe: Boolean(rememberMe),
       loginTimestamp: new Date().toISOString()
     };
@@ -57,6 +53,32 @@ export function AuthProvider({ children }) {
     storage.set('auth_user', userObj);
 
     return userObj;
+  };
+
+  const register = ({ name, email, password, confirmPassword, role }) => {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedName) throw new Error('Please enter your full name.');
+    if (!validateEmailFormat(trimmedEmail)) throw new Error('Please enter a valid email address.');
+    if (password.length < 8) throw new Error('Password must be at least 8 characters long.');
+    if (password !== confirmPassword) throw new Error('Passwords do not match.');
+    if (role !== 'ADMIN' && role !== 'EMPLOYEE') throw new Error('Please select a valid role.');
+    if (accounts.some((item) => item.email.toLowerCase() === trimmedEmail)) {
+      throw new Error('An account with this email already exists.');
+    }
+
+    const account = {
+      id: `usr-${Date.now()}`,
+      name: trimmedName,
+      email: trimmedEmail,
+      password,
+      role,
+      createdAt: new Date().toISOString()
+    };
+    const nextAccounts = [...accounts, account];
+    setAccounts(nextAccounts);
+    storage.set('accounts', nextAccounts);
+    return account;
   };
 
   const logout = () => {
@@ -74,6 +96,7 @@ export function AuthProvider({ children }) {
         isAdmin: currentUser?.role === 'ADMIN',
         isEmployee: currentUser?.role === 'EMPLOYEE',
         login,
+        register,
         logout
       }}
     >

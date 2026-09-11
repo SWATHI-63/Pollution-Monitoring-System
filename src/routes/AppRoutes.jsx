@@ -6,6 +6,8 @@ import { RoleGuard } from '../components/layout/RoleGuard';
 
 // Pages
 import { LoginPage } from '../pages/LoginPage';
+import { LandingPage } from '../pages/LandingPage';
+import { RegisterPage } from '../pages/RegisterPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { AirQualityPage } from '../pages/AirQualityPage';
 import { WaterQualityPage } from '../pages/WaterQualityPage';
@@ -19,12 +21,14 @@ import { FacilitiesPage } from '../pages/FacilitiesPage';
 import { ReportsPage } from '../pages/ReportsPage';
 import { UsersPage } from '../pages/UsersPage';
 import { SettingsPage } from '../pages/SettingsPage';
+import { EnvironmentalReadingPage } from '../pages/EnvironmentalReadingPage';
 
 export function AppRoutes() {
   return (
     <Routes>
-      {/* Public Login Route */}
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
 
       {/* Protected Application Routes */}
       <Route
@@ -40,6 +44,7 @@ export function AppRoutes() {
         <Route path="air-quality" element={<AirQualityPage />} />
         <Route path="water-quality" element={<WaterQualityPage />} />
         <Route path="simulator" element={<SimulatorPage />} />
+        <Route path="environmental-reading" element={<EnvironmentalReadingPage />} />
         <Route path="compliance" element={<CompliancePage />} />
 
         {/* Admin-only Protected Route: Threshold Configuration */}
@@ -72,7 +77,7 @@ export function AppRoutes() {
       </Route>
 
       {/* Fallback */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

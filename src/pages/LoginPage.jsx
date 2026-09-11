@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Leaf, Shield, User, Lock, Mail, CheckCircle2, ArrowRight, AlertCircle, Sparkles } from 'lucide-react';
+import { Leaf, Lock, Mail, ArrowRight, AlertCircle, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -12,10 +12,10 @@ export function LoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('ADMIN'); // Default to ADMIN for demonstration convenience
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [notice] = useState(location.state?.message || '');
 
   const from = location.state?.from?.pathname || '/dashboard';
 
@@ -28,14 +28,13 @@ export function LoginPage() {
       const user = login({
         email,
         password,
-        role,
         rememberMe
       });
 
       addToast({
         type: 'success',
         title: 'Authentication Successful',
-        message: `Welcome back, ${user.name}! Signed in with ${role} privileges.`
+        message: `Welcome back, ${user.name}!`
       });
 
       navigate(from, { replace: true });
@@ -49,14 +48,6 @@ export function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Quick Demo Helper buttons
-  const setDemoCredentials = (targetRole, sampleEmail) => {
-    setEmail(sampleEmail);
-    setPassword('demo1234');
-    setRole(targetRole);
-    setError('');
   };
 
   return (
@@ -82,33 +73,8 @@ export function LoginPage() {
           </p>
         </div>
 
-        {/* Demo Fast-Fill Bar */}
-        <div className="p-3 rounded-2xl bg-slate-800/60 border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
-            <span className="flex items-center gap-1 font-semibold text-slate-300">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Demo Quick-Select:
-            </span>
-            <span>Click to pre-fill</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setDemoCredentials('ADMIN', 'admin@ecocomply.com')}
-              className="px-2.5 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[11px] font-bold text-center transition-all"
-            >
-              ADMIN Role
-            </button>
-            <button
-              type="button"
-              onClick={() => setDemoCredentials('EMPLOYEE', 'swathi@example.com')}
-              className="px-2.5 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30 text-[11px] font-bold text-center transition-all"
-            >
-              EMPLOYEE Role
-            </button>
-          </div>
-        </div>
-
         {/* Form error */}
+        {notice && <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs">{notice}</div>}
         {error && (
           <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -128,15 +94,12 @@ export function LoginPage() {
               <input
                 type="email"
                 required
-                placeholder="Enter ANY valid email (e.g. user@company.com)"
+                placeholder="name@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
               />
             </div>
-            <span className="text-[10px] text-slate-500 mt-1 block">
-              Accepts any valid email (e.g. student@gmail.com, swathi@example.com)
-            </span>
           </div>
 
           {/* Password input */}
@@ -149,29 +112,11 @@ export function LoginPage() {
               <input
                 type="password"
                 required
-                placeholder="Enter password (min. 4 characters)"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
               />
-            </div>
-          </div>
-
-          {/* Role selection - EXACTLY TWO ROLES */}
-          <div>
-            <label className="block text-slate-300 font-semibold mb-1">
-              Select Role
-            </label>
-            <div className="relative">
-              <Shield className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-              >
-                <option value="ADMIN">ADMIN – Full Authority &amp; System Configuration</option>
-                <option value="EMPLOYEE">EMPLOYEE – Monitoring &amp; Environmental Audit</option>
-              </select>
             </div>
           </div>
 
@@ -198,6 +143,9 @@ export function LoginPage() {
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
+        <div className="text-center text-xs text-slate-400">
+          New to EcoComply? <a href="/register" className="text-emerald-400 font-semibold hover:text-emerald-300">Create Account</a>
+        </div>
 
         {/* Prototype notice */}
         <div className="pt-2 text-center text-[10px] text-slate-500 border-t border-slate-800">

@@ -1,12 +1,15 @@
 import React from 'react';
-import { Leaf, Printer, Download, Calendar, Building2, ShieldCheck, AlertOctagon } from 'lucide-react';
+import { Leaf, Printer, Download } from 'lucide-react';
 import { StatusBadge } from '../common/StatusBadge';
 import { exportToCSV, triggerPrint } from '../../utils/exportUtils';
-import { formatNumber } from '../../utils/formatters';
+import { useAuth } from '../../context/AuthContext';
+import { api } from '../../services/api';
+
 
 export function PrintableReportPreview({
   reportType,
   facility,
+  facilityId,
   startDate,
   endDate,
   statistics,
@@ -14,6 +17,8 @@ export function PrintableReportPreview({
   complianceScore,
   finalStatus
 }) {
+  const { currentUser } = useAuth();
+
   const handleExportCSV = () => {
     const csvData = statistics.map((stat) => ({
       Parameter: stat.name,
@@ -27,6 +32,23 @@ export function PrintableReportPreview({
     }));
     exportToCSV(csvData, `EcoComply_${reportType.replace(/\s+/g, '_')}_${facility?.code || 'FAC'}.csv`);
   };
+  const handleSaveReport = async () => {
+    try {
+      await api.saveReport({
+        title: `${reportType} - ${facility?.name || 'All Facilities'}`,
+        reportType,
+        facilityId: facilityId || null,
+        generatedBy: currentUser?.id || null,
+        fileUrl: null
+      });
+
+      alert('Report saved successfully.');
+    } catch (error) {
+      console.error('Failed to save report:', error);
+      alert(`Could not save report: ${error.message}`);
+    }
+  };
+  
 
   return (
     <div className="space-y-4">
@@ -49,6 +71,12 @@ export function PrintableReportPreview({
             <Download className="w-3.5 h-3.5" />
             EXPORT CSV
           </button>
+          <button
+  onClick={handleSaveReport}
+  className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold"
+>
+  SAVE REPORT
+</button>
 
           <button
             onClick={triggerPrint}
@@ -82,7 +110,7 @@ export function PrintableReportPreview({
             <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">
               {reportType}
             </div>
-            <div>Ref Code: EC-REP-{Math.floor(100000 + Math.random() * 900000)}</div>
+            <div>Ref Code: EC-REP-{Math.floor(100000 + Math.random() * 900000)}</div> {/* NOSONAR */}
             <div>Generated: {new Date().toLocaleString()}</div>
           </div>
         </div>
@@ -154,8 +182,8 @@ export function PrintableReportPreview({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                {statistics.map((stat, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                {statistics.map((stat) => (
+                  <tr key={stat.name} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
                       {stat.name}
                     </td>
@@ -247,4 +275,3 @@ export function PrintableReportPreview({
     </div>
   );
 }
-

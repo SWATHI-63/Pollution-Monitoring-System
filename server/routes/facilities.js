@@ -1,4 +1,5 @@
 import express from 'express';
+import { randomUUID } from 'node:crypto';
 import { store } from '../store.js';
 
 export const facilitiesRouter = express.Router();
@@ -14,7 +15,7 @@ facilitiesRouter.post('/', (req, res) => {
   const facilities = store.get('facilities') || [];
   const newFacility = {
     ...req.body,
-    id: `fac-${Date.now()}`,
+    id: randomUUID(),
     compliancePercentage: req.body.compliancePercentage || 95,
     activeAlerts: 0,
     status: 'NORMAL',

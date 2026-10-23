@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { storage } from '../utils/storage';
+import { api } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -14,13 +15,37 @@ export function AuthProvider({ children }) {
     return !!storage.get('auth_user', null);
   });
 
+  useEffect(() => {
+    if (!currentUser?.email) return undefined;
+
+    let isCurrent = true;
+    api.getUserProfile(currentUser.email)
+      .then((profile) => {
+        if (!isCurrent) return;
+        const syncedUser = {
+          ...currentUser,
+          ...profile,
+          role: String(profile.role || currentUser.role).toUpperCase()
+        };
+        setCurrentUser(syncedUser);
+        storage.set('auth_user', syncedUser);
+      })
+      .catch((error) => {
+        console.info('[AuthContext] Profile sync unavailable:', error.message);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [currentUser?.email]);
+
   const validateEmailFormat = (email) => {
     // Standard RFC-compliant loose regex accepting any valid email format
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(String(email).toLowerCase().trim());
   };
 
-  const login = ({ email, password, role = 'EMPLOYEE', rememberMe = false }) => {
+  const login = async ({ email, password, role = 'EMPLOYEE', rememberMe = false }) => {
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail) {
@@ -48,14 +73,24 @@ export function AuthProvider({ children }) {
       loginTimestamp: new Date().toISOString()
     };
 
-    setCurrentUser(userObj);
-    setIsAuthenticated(true);
-    storage.set('auth_user', userObj);
+    const persistedUser = await api.recordLogin({
+      ...userObj,
+      password
+    });
+    const authenticatedUser = {
+      ...userObj,
+      ...persistedUser,
+      role: String(persistedUser.role || userObj.role).toUpperCase()
+    };
 
-    return userObj;
+    setCurrentUser(authenticatedUser);
+    setIsAuthenticated(true);
+    storage.set('auth_user', authenticatedUser);
+
+    return authenticatedUser;
   };
 
-  const register = ({ name, email, password, confirmPassword, role }) => {
+  const register = async ({ name, email, password, confirmPassword, role }) => {
     const trimmedName = name.trim();
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedName) throw new Error('Please enter your full name.');
@@ -78,7 +113,13 @@ export function AuthProvider({ children }) {
     const nextAccounts = [...accounts, account];
     setAccounts(nextAccounts);
     storage.set('accounts', nextAccounts);
-    return account;
+    const persistedUser = await api.recordLogin({
+      name: account.name,
+      email: account.email,
+      password,
+      role: account.role
+    });
+    return { ...account, ...persistedUser };
   };
 
   const logout = () => {
@@ -106,4 +147,3 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
-

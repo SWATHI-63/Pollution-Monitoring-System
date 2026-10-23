@@ -103,6 +103,13 @@ export const api = {
 
   // Users
   getUsers: () => request('/users'),
+  getUserProfile: (email) =>
+    request(`/users/profile?email=${encodeURIComponent(email)}`),
+  recordLogin: (userData) =>
+    request('/users/login', {
+      method: 'POST',
+      body: JSON.stringify(userData)
+    }),
   createUser: (userData) =>
     request('/users', {
       method: 'POST',
@@ -116,5 +123,13 @@ export const api = {
   deleteUser: (id) =>
     request(`/users/${id}`, {
       method: 'DELETE'
+    }),
+
+  // Reports
+  getReports: () => request('/reports'),
+  saveReport: (reportData) =>
+    request('/reports', {
+      method: 'POST',
+      body: JSON.stringify(reportData)
     })
 };

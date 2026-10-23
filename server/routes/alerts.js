@@ -1,4 +1,5 @@
 import express from 'express';
+import { randomUUID } from 'node:crypto';
 import { store } from '../store.js';
 
 export const alertsRouter = express.Router();
@@ -26,7 +27,7 @@ alertsRouter.post('/', (req, res) => {
   const alerts = store.get('alerts') || [];
   const now = new Date();
   const newAlert = {
-    id: `ALT-${Math.floor(1000 + Math.random() * 9000)}`,
+    id: randomUUID(),
     facility: req.body.facility || 'Monitored Plant',
     facilityId: req.body.facilityId || 'fac-1',
     parameter: req.body.parameter || 'Environmental Parameter',

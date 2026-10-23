@@ -19,13 +19,13 @@ export function LoginPage() {
 
   const from = location.state?.from?.pathname || '/dashboard';
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
     try {
-      const user = login({
+      const user = await login({
         email,
         password,
         rememberMe
@@ -155,4 +155,3 @@ export function LoginPage() {
     </div>
   );
 }
-

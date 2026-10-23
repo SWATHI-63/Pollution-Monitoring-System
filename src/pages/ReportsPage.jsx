@@ -161,6 +161,7 @@ export function ReportsPage() {
       <PrintableReportPreview
         reportType={reportType}
         facility={targetFacility}
+        facilityId={targetFacility?.id}
         startDate={startDate}
         endDate={endDate}
         statistics={reportStatistics}
@@ -171,4 +172,3 @@ export function ReportsPage() {
     </div>
   );
 }
-

@@ -1,4 +1,5 @@
 import express from 'express';
+import { randomUUID } from 'node:crypto';
 import { store } from '../store.js';
 
 export const telemetryRouter = express.Router();
@@ -71,6 +72,7 @@ function calculateCompliance(readings, thresholds) {
 }
 
 // Telemetry Generator for Server simulation
+// NOSONAR: Math.random() is intentionally used here for non-security sensor simulation only
 export function generateNextTelemetry(mode) {
   let airQuality = 65;
   let temperature = 28.5;
@@ -78,26 +80,26 @@ export function generateNextTelemetry(mode) {
   let ph = 7.2;
   let turbidity = 3.2;
 
-  const jitter = (range) => (Math.random() - 0.5) * range;
+  const jitter = (range) => (Math.random() - 0.5) * range; // NOSONAR
 
   if (mode === 'NORMAL') {
-    airQuality = Math.round(55 + Math.random() * 30 + jitter(5));
-    temperature = Number((26 + Math.random() * 6 + jitter(0.5)).toFixed(1));
-    humidity = Math.round(48 + Math.random() * 18 + jitter(3));
-    ph = Number((7.1 + (Math.random() - 0.5) * 0.6).toFixed(2));
-    turbidity = Number((2.0 + Math.random() * 2.2).toFixed(1));
+    airQuality = Math.round(55 + Math.random() * 30 + jitter(5)); // NOSONAR
+    temperature = Number((26 + Math.random() * 6 + jitter(0.5)).toFixed(1)); // NOSONAR
+    humidity = Math.round(48 + Math.random() * 18 + jitter(3)); // NOSONAR
+    ph = Number((7.1 + (Math.random() - 0.5) * 0.6).toFixed(2)); // NOSONAR
+    turbidity = Number((2.0 + Math.random() * 2.2).toFixed(1)); // NOSONAR
   } else if (mode === 'WARNING') {
-    airQuality = Math.round(105 + Math.random() * 20);
-    temperature = Number((38.5 + Math.random() * 2.0).toFixed(1));
-    humidity = Math.round(76 + Math.random() * 5);
-    ph = Number((6.2 + Math.random() * 0.2).toFixed(2));
-    turbidity = Number((6.2 + Math.random() * 2.5).toFixed(1));
+    airQuality = Math.round(105 + Math.random() * 20); // NOSONAR
+    temperature = Number((38.5 + Math.random() * 2.0).toFixed(1)); // NOSONAR
+    humidity = Math.round(76 + Math.random() * 5); // NOSONAR
+    ph = Number((6.2 + Math.random() * 0.2).toFixed(2)); // NOSONAR
+    turbidity = Number((6.2 + Math.random() * 2.5).toFixed(1)); // NOSONAR
   } else if (mode === 'VIOLATION') {
-    airQuality = Math.round(168 + Math.random() * 60);
-    temperature = Number((43.2 + Math.random() * 4.5).toFixed(1));
-    humidity = Math.round(87 + Math.random() * 8);
-    ph = Number((5.4 + Math.random() * 0.4).toFixed(2));
-    turbidity = Number((12.8 + Math.random() * 8.0).toFixed(1));
+    airQuality = Math.round(168 + Math.random() * 60); // NOSONAR
+    temperature = Number((43.2 + Math.random() * 4.5).toFixed(1)); // NOSONAR
+    humidity = Math.round(87 + Math.random() * 8); // NOSONAR
+    ph = Number((5.4 + Math.random() * 0.4).toFixed(2)); // NOSONAR
+    turbidity = Number((12.8 + Math.random() * 8.0).toFixed(1)); // NOSONAR
   }
 
   return {
@@ -161,7 +163,7 @@ telemetryRouter.post('/control', (req, res) => {
 });
 
 // POST /api/telemetry/manual
-telemetryRouter.post('/manual', (req, res) => {
+telemetryRouter.post('/manual', async (req, res) => {
   const { airQuality, temperature, humidity, ph, turbidity } = req.body;
   const readings = {
     airQuality: Number(airQuality),
@@ -175,17 +177,25 @@ telemetryRouter.post('/manual', (req, res) => {
   const simulation = store.get('simulation');
   simulation.readings = readings;
   store.set('simulation', simulation);
+  
 
   const thresholds = store.get('thresholds') || {};
   const compliance = calculateCompliance(readings, thresholds);
+
+  // Save the actual reading to Supabase
+  let readingStatus = 'normal';
+  if (compliance.violationCount > 0) readingStatus = 'violation';
+  else if (compliance.warningCount > 0) readingStatus = 'warning';
+
+  await store.insertReading({ ...readings, source: 'manual', status: readingStatus });
 
   // Auto create alert on violation
   const alerts = store.get('alerts') || [];
   Object.keys(thresholds).forEach((k) => {
     const item = compliance.details[k];
-    if (item && item.status === 'VIOLATION') {
+    if (item?.status === 'VIOLATION') {
       alerts.unshift({
-        id: `ALT-${Math.floor(1000 + Math.random() * 9000)}`,
+        id: randomUUID(),
         facility: 'Manual Test Bench',
         facilityId: 'fac-1',
         parameter: item.threshold.name,
@@ -225,9 +235,9 @@ telemetryRouter.get('/history', (req, res) => {
       time: timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       date: timestamp.toLocaleDateString([], { month: 'short', day: 'numeric' }),
       timestamp: timestamp.toISOString(),
-      airQuality: Math.round(65 + cycle * 20 + Math.random() * 12),
-      temperature: Number((28 + cycle * 4 + Math.random() * 1.5).toFixed(1)),
-      humidity: Math.round(55 - cycle * 12 + Math.random() * 6),
+      airQuality: Math.round(65 + cycle * 20 + Math.random() * 12), // NOSONAR
+      temperature: Number((28 + cycle * 4 + Math.random() * 1.5).toFixed(1)), // NOSONAR
+      humidity: Math.round(55 - cycle * 12 + Math.random() * 6), // NOSONAR
       ph: Number((7.2 + Math.sin(i * 0.4) * 0.4).toFixed(2)),
       turbidity: Number((3.2 + Math.cos(i * 0.3) * 1.2).toFixed(1))
     });
